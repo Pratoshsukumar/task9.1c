@@ -3,6 +3,7 @@ import { auth, googleProvider } from "../firebase";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
@@ -13,42 +14,66 @@ export default function Login() {
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [isRegister, setIsRegister] = useState(false); // NEW: toggle Sign up / Sign in
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  const emailLogin = async (e) => {
+  const emailAuth = async (e) => {
     e.preventDefault();
-    setBusy(true); setMsg("");
-    try { await signInWithEmailAndPassword(auth, email.trim(), pass); setMsg("Signed in."); }
-    catch (e) { setMsg(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMsg("");
+    try {
+      if (isRegister) {
+        await createUserWithEmailAndPassword(auth, email.trim(), pass);
+        setMsg("Account created and signed in.");
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), pass);
+        setMsg("Signed in.");
+      }
+    } catch (e) {
+      setMsg(e.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const googleLogin = async () => {
-    setBusy(true); setMsg("");
-    try { await signInWithPopup(auth, googleProvider); setMsg("Signed in with Google."); }
-    catch (e) { setMsg(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMsg("");
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setMsg("Signed in with Google.");
+    } catch (e) {
+      setMsg(e.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const doSignOut = async () => {
-    setBusy(true); setMsg("");
-    try { await signOut(auth); setMsg("Signed out."); }
-    catch (e) { setMsg(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMsg("");
+    try {
+      await signOut(auth);
+      setMsg("Signed out.");
+    } catch (e) {
+      setMsg(e.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  // --- Inline styles so the layout is perfect even without Tailwind ---
+  // --- Inline styles (unchanged) ---
   const outer = {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "16px",
-    background: "linear-gradient(135deg,#0f172a,#1f2937)", // slate-900 -> slate-800
+    background: "linear-gradient(135deg,#0f172a,#1f2937)",
   };
   const card = {
     width: "100%",
@@ -89,9 +114,36 @@ export default function Login() {
     padding: "12px 16px",
     fontWeight: 700,
     fontSize: "16px",
-    background: "#4f46e5", // indigo-600
+    background: "#4f46e5",
     color: "#fff",
     cursor: "pointer",
+  };
+  const altBtn = {
+    width: "100%",
+    border: "1px solid #cbd5e1",
+    borderRadius: "12px",
+    padding: "12px 16px",
+    fontWeight: 700,
+    fontSize: "16px",
+    background: "#fff",
+    color: "#0f172a",
+    cursor: "pointer",
+    marginTop: "10px",
+  };
+  const switchText = {
+    textAlign: "center",
+    marginTop: "10px",
+    fontSize: "14px",
+    color: "#475569",
+  };
+  const linkBtn = {
+    background: "none",
+    border: "none",
+    padding: 0,
+    margin: 0,
+    color: "#4f46e5",
+    cursor: "pointer",
+    fontWeight: 700,
   };
   const dividerWrap = {
     display: "flex",
@@ -123,7 +175,7 @@ export default function Login() {
     <div style={outer}>
       <div style={card}>
         <h1 style={title}>Dev@Deakin</h1>
-        <p style={subtitle}>Sign in to continue</p>
+        <p style={subtitle}>{isRegister ? "Create a new account" : "Sign in to continue"}</p>
 
         {user ? (
           <div style={{ textAlign: "center" }}>
@@ -136,7 +188,7 @@ export default function Login() {
           </div>
         ) : (
           <>
-            <form onSubmit={emailLogin}>
+            <form onSubmit={emailAuth}>
               <input
                 type="email"
                 required
@@ -154,9 +206,27 @@ export default function Login() {
                 style={input}
               />
               <button type="submit" style={primaryBtn} disabled={busy}>
-                {busy ? "Signing in…" : "Sign in"}
+                {busy
+                  ? isRegister
+                    ? "Registering…"
+                    : "Signing in…"
+                  : isRegister
+                  ? "Sign up"
+                  : "Sign in"}
               </button>
             </form>
+
+            <p style={switchText}>
+              {isRegister ? "Already have an account?" : "New here?"}{" "}
+              <button
+                type="button"
+                onClick={() => setIsRegister((v) => !v)}
+                style={linkBtn}
+                disabled={busy}
+              >
+                {isRegister ? "Sign in instead" : "Create an account"}
+              </button>
+            </p>
 
             <div style={dividerWrap}>
               <div style={dividerLine} />
@@ -164,7 +234,6 @@ export default function Login() {
               <div style={dividerLine} />
             </div>
 
-            {/* Google button with fixed 20×20 logo */}
             <button onClick={googleLogin} style={googleBtn} disabled={busy} aria-label="Continue with Google">
               <img
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
@@ -172,6 +241,20 @@ export default function Login() {
                 style={gIcon}
               />
               {busy ? "Please wait…" : "Continue with Google"}
+            </button>
+
+            {/* Optional: allow trying without creating an account */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("test@example.com");
+                setPass("password123");
+              }}
+              style={altBtn}
+              disabled={busy}
+              aria-label="Prefill demo credentials"
+            >
+              Prefill demo credentials
             </button>
           </>
         )}
@@ -181,4 +264,3 @@ export default function Login() {
     </div>
   );
 }
-
